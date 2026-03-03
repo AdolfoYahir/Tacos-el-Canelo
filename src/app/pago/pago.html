@@ -1,0 +1,28 @@
+<div class="container text-center mt-4">
+
+  <h2>Forma de pago</h2>
+
+  <select class="form-select w-50 mx-auto"
+          [(ngModel)]="metodo">
+
+    <option value="persona">Pagar en persona</option>
+    <option value="online">Pago en línea</option>
+
+  </select>
+
+  <div *ngIf="metodo==='online'" class="mt-4">
+
+    <input class="form-control my-2" placeholder="Número de tarjeta">
+    <input class="form-control my-2" placeholder="PIN">
+
+  </div>
+
+  <button routerLink="/estado"
+          (click)="pagar()"
+          class="btn btn-success mt-3">
+
+    Confirmar pago
+
+  </button>
+
+</div>

@@ -1,0 +1,144 @@
+<div class="menu-container container mt-4">
+  
+  <!-- Header con información -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Menú de Comida</h2>
+    <div class="text-end">
+      <div class="hora-actual"> {{ horaActual }}</div>
+      <div *ngIf="!pedidosPermitidos()" class="estado-cerrado text-danger">
+         {{ getMensajeEstado() }}
+      </div>
+      <div *ngIf="pedidosPermitidos()" class="estado-abierto text-success">
+         Pedidos abiertos
+      </div>
+    </div>
+  </div>
+  
+  <div class="d-flex justify-content-between mb-3">
+    <button class="btn btn-secondary" (click)="regresar()">
+      ← Cerrar sesión
+    </button>
+    
+    <button class="btn btn-info" (click)="siguiente()">
+      Ir a Bebidas →
+    </button>
+  </div>
+  
+  <!-- Mensaje si no hay productos -->
+  <div *ngIf="productos.length === 0" class="alert alert-info text-center">
+    No hay productos disponibles en este momento
+  </div>
+  
+  <!-- Lista de productos -->
+  <div class="row">
+    <div *ngFor="let producto of productos" class="col-md-6 mb-4">
+      <div class="card h-100" [class.border-danger]="!producto.disponible" [class.border-success]="producto.disponible">
+        
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <h4 class="card-title">{{ producto.nombre }}</h4>
+            <span class="badge bg-primary fs-5">${{ producto.precio }}</span>
+          </div>
+          
+          <!-- Indicador de disponibilidad -->
+          <div class="mb-3">
+            <span class="badge" 
+                  [class.bg-success]="producto.disponible"
+                  [class.bg-secondary]="!producto.disponible">
+              {{ producto.disponible ? ' Disponible' : ' Agotado' }}
+            </span>
+          </div>
+          
+          <!-- Controles de cantidad -->
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <label class="fw-bold">Cantidad:</label>
+            <div class="d-flex align-items-center">
+              <button class="btn btn-sm btn-danger" 
+                      (click)="quitar(producto)"
+                      [disabled]="producto.cantidad === 0 || !producto.disponible">
+                -
+              </button>
+              <span class="mx-3 fs-5">{{ producto.cantidad }}</span>
+              <button class="btn btn-sm btn-success" 
+                      (click)="agregar(producto)"
+                      [disabled]="!producto.disponible">
+                +
+              </button>
+            </div>
+          </div>
+          
+          <!-- Opción de QUESO (destacada) -->
+          <div class="card bg-warning bg-opacity-25 mb-3 p-2" *ngIf="producto.cantidad > 0">
+            <div class="form-check">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     [(ngModel)]="producto.opciones.conQueso"
+                     [id]="'queso-' + producto.nombre">
+              <label class="form-check-label fw-bold" [for]="'queso-' + producto.nombre">
+                 AGREGAR QUESO (+$5)
+              </label>
+            </div>
+          </div>
+          
+          <!-- Opciones de verduras (solo si hay cantidad) -->
+          <div *ngIf="producto.cantidad > 0" class="verduras-opciones border-top pt-3">
+            <p class="fw-bold mb-2">Verduras:</p>
+            
+            <div class="form-check mb-2">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     [(ngModel)]="producto.opciones.cebollaYCilantro"
+                     [disabled]="producto.opciones.sinVerdura"
+                     (change)="quitarSinVerdura(producto)"
+                     [id]="'cebollacilantro-' + producto.nombre">
+              <label class="form-check-label" [for]="'cebollacilantro-' + producto.nombre">
+                Cebolla y cilantro
+              </label>
+            </div>
+            
+            <div class="form-check mb-2">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     [(ngModel)]="producto.opciones.cebollaAsada"
+                     [disabled]="producto.opciones.sinVerdura"
+                     (change)="quitarSinVerdura(producto)"
+                     [id]="'cebollaasada-' + producto.nombre">
+              <label class="form-check-label" [for]="'cebollaasada-' + producto.nombre">
+                Cebolla asada
+              </label>
+            </div>
+            
+            <div class="form-check">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     [(ngModel)]="producto.opciones.sinVerdura"
+                     (change)="toggleSinVerdura(producto)"
+                     [id]="'sinverdura-' + producto.nombre">
+              <label class="form-check-label text-danger" [for]="'sinverdura-' + producto.nombre">
+                Sin verdura
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Botón único para agregar pedido completo -->
+  <div class="fixed-bottom bg-light p-3 border-top">
+    <div class="container">
+      <div class="row">
+        <div class="col-12 d-flex justify-content-center">
+          <button class="btn btn-success btn-lg px-5" 
+                  (click)="agregarPedidoCompleto()"
+                  [disabled]="!pedidosPermitidos() || !hayProductosSeleccionados()">
+             AGREGAR PEDIDO COMPLETO
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Espacio para el botón fijo -->
+  <div style="height: 100px;"></div>
+</div>

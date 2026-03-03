@@ -1,0 +1,144 @@
+<div class="admin-container container mt-4">
+  
+  <!-- Header con estado de pedidos -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Panel de Administración</h2>
+    <button class="btn btn-danger" (click)="cerrarSesion()">
+      Cerrar Sesión
+    </button>
+  </div>
+  
+  <!-- Control de apertura/cierre de pedidos -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Control de Pedidos</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group mb-3">
+            <label>Estado de pedidos:</label>
+            <div class="d-flex align-items-center">
+              <span class="badge me-3" 
+                    [class.bg-success]="pedidosEstado === 'abierto'"
+                    [class.bg-danger]="pedidosEstado === 'cerrado'"
+                    style="font-size: 1.2rem; padding: 0.5rem 1rem;">
+                {{ pedidosEstado === 'abierto' ? 'ABIERTO' : 'CERRADO' }}
+              </span>
+              <button class="btn" 
+                      [class.btn-success]="pedidosEstado === 'cerrado'"
+                      [class.btn-danger]="pedidosEstado === 'abierto'"
+                      (click)="cambiarEstadoPedidos()">
+                {{ pedidosEstado === 'abierto' ? 'Cerrar Pedidos' : 'Abrir Pedidos' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="form-group mb-3">
+            <label>Horario de atención:</label>
+            <div class="d-flex gap-2">
+              <input type="time" class="form-control" [(ngModel)]="horaApertura">
+              <span class="align-self-center">a</span>
+              <input type="time" class="form-control" [(ngModel)]="horaCierre">
+              <button class="btn btn-primary" (click)="guardarHorarios()">
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-12">
+          <div class="form-group">
+            <label>Mensaje para clientes (cuando está cerrado):</label>
+            <textarea class="form-control" 
+                      [(ngModel)]="mensajePersonalizado" 
+                      rows="2"
+                      placeholder="Ej: Estamos cerrados, vuelva mañana..."></textarea>
+            <small class="text-muted">Este mensaje se mostrará a los clientes cuando intenten pedir</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">Agregar Producto</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-5">
+          <input type="text" 
+                 class="form-control" 
+                 placeholder="Nombre del producto" 
+                 [(ngModel)]="nuevo">
+        </div>
+        <div class="col-md-4">
+          <select class="form-control" [(ngModel)]="tipoNuevo">
+            <option value="comida">Comida</option>
+            <option value="bebida">Bebida</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-success w-100" (click)="agregar()">
+            Agregar Producto
+          </button>
+        </div>
+      </div>
+      <small class="text-muted">Los productos nuevos se agregan como disponibles por defecto</small>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">Inventario</h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Tipo</th>
+            <th>Disponibilidad</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of productos; let i = index">
+            <td>{{ p.nombre }}</td>
+            <td>
+              <span class="badge" 
+                    [class.bg-warning]="p.tipo === 'comida'"
+                    [class.bg-info]="p.tipo === 'bebida'">
+                {{ p.tipo }}
+              </span>
+            </td>
+            <td>
+              <div class="form-check form-switch">
+                <input class="form-check-input" 
+                       type="checkbox" 
+                       [checked]="p.disponible"
+                       (change)="cambiarDisponibilidad(p)"
+                       id="disponible-{{i}}">
+                <label class="form-check-label" for="disponible-{{i}}">
+                  <span class="badge" 
+                        [class.bg-success]="p.disponible"
+                        [class.bg-secondary]="!p.disponible">
+                    {{ p.disponible ? 'Disponible' : 'No disponible' }}
+                  </span>
+                </label>
+              </div>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-danger" (click)="eliminar(i)">
+                Eliminar
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

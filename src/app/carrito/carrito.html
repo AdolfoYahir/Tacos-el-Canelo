@@ -1,0 +1,92 @@
+<div class="carrito-container container mt-4">
+  
+  <h2 class="text-center">Tu pedido</h2>
+
+  <div class="d-flex justify-content-between mb-3">
+    <button class="btn btn-secondary" (click)="regresarMenu()">
+      ← Volver al menú
+    </button>
+    
+    <button class="btn btn-danger" (click)="vaciarCarrito()" [disabled]="pedido.length === 0">
+      Vaciar Carrito
+    </button>
+  </div>
+  
+  <div *ngIf="pedido.length === 0" class="alert alert-info text-center mt-4">
+    <p>No hay productos en el carrito</p>
+    <button class="btn btn-primary mt-2" (click)="regresarMenu()">
+      Ir a comprar
+    </button>
+  </div>
+
+  <div *ngFor="let item of pedido; let i = index" 
+    class="card mb-3">
+    
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">{{ item.nombre }}</h5>
+      <span class="badge bg-primary">${{ item.precio }} c/u</span>
+    </div>
+    
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-8">
+          <div *ngIf="item.opciones && item.opciones.length > 0" class="mb-3">
+            <h6 class="fw-bold"> Ingredientes y opciones:</h6>
+            <ul class="list-group">
+              <li *ngFor="let opcion of item.opciones" 
+                  class="list-group-item list-group-item-light py-1">
+                {{ opcion }}
+              </li>
+            </ul>
+          </div>
+          
+          <div *ngIf="!item.opciones || item.opciones.length === 0" class="text-muted">
+            <small>Sin ingredientes adicionales</small>
+          </div>
+        </div>
+        
+        <div class="col-md-4 text-end">
+          <h6 class="fw-bold">Cantidad: {{ item.cantidad }}</h6>
+          <h6 class="fw-bold text-primary">Subtotal: ${{ item.precio * item.cantidad }}</h6>
+          <button (click)="quitar(i)" class="btn btn-danger btn-sm mt-2">
+             Quitar
+          </button>
+        </div>
+      </div>
+      
+      <div class="mt-2">
+        <span class="badge" 
+              [class.bg-warning]="item.tipo === 'comida'"
+              [class.bg-info]="item.tipo === 'bebida'">
+          {{ item.tipo === 'comida' ? ' Comida' : ' Bebida' }}
+        </span>
+      </div>
+    </div>
+  </div>
+  
+  <div *ngIf="pedido.length > 0" class="card mt-4 bg-light">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Resumen del pedido:</h5>
+          <p>Total de productos: {{ pedido.length }}</p>
+          <p>Usuario: {{ usuarioActual?.usuario }}</p>
+        </div>
+        <div class="col-md-6 text-end">
+          <h3 class="text-primary">Total: ${{ total }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div *ngIf="pedido.length > 0" class="d-flex justify-content-center gap-3 mt-4 mb-5">
+    <button class="btn btn-success btn-lg" (click)="irpago()">
+       Proceder al Pago
+    </button>
+    <button class="btn btn-outline-primary btn-lg" (click)="regresarMenu()">
+       Seguir Comprando
+    </button>
+  </div>
+  
+  <div style="height: 50px;"></div>
+</div>
