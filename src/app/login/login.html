@@ -1,31 +1,41 @@
-<div class="container text-center mt-5">
+<div class="login-container">
 
-  <img src="img/Logo.png" class="card-img-top" alt="OP" style="width: 150px;">
+  <div class="logo-section">
+    <img src="img/Logo.png" alt="Tacos El Canelo" class="logo" />
+    <h1>Iniciar sesión</h1>
+  </div>
 
-  <h2>Iniciar sesión</h2>
+  <div class="form-section">
 
-  <input class="form-control my-2"
-         placeholder="Usuario o teléfono"
-         [(ngModel)]="usuario">
+    <input
+      type="text"
+      placeholder="Usuario"
+      [(ngModel)]="nombre"
+      class="input-field"
+    />
 
-  <input type="password"
-         class="form-control my-2"
-         placeholder="Contraseña"
-         [(ngModel)]="password">
+    <input
+      type="password"
+      placeholder="Contrasena"
+      [(ngModel)]="contrasena"
+      class="input-field"
+    />
 
-  <button class="btn btn-success w-100"
-          (click)="ingresar()">
-    Entrar
-  </button>
+    <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
 
-  <button class="btn btn-primary w-100 mt-2"
-          (click)="registrarse()">
-    Registrarse
-  </button>
+    <button
+      class="btn-entrar"
+      (click)="iniciarSesion()"
+      [disabled]="cargando"
+    >
+      {{ cargando ? 'Cargando...' : 'Entrar' }}
+    </button>
 
-  <a href="#" 
-     class="d-block mt-3"
-     (click)="olvidarPassword()">
-     ¿Se te olvidó la contraseña?
-  </a>
+    <button class="btn-registrar" (click)="irARegistro()">
+      Registrarse
+    </button>
+
+    <a class="link-olvide">¿Se te olvidó la contraseña?</a>
+
+  </div>
 </div>

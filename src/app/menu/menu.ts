@@ -1,159 +1,237 @@
-import { CommonModule, NgFor, NgIf } from '@angular/common';
-import { Component } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { OnInit } from '@angular/core';
+import { DatabaseService } from '../database';
+import { Pedido, Producto, Usuario } from '../models/database.models';
+
+const QUESO_EXTRA_PRICE = 5;
+
+export interface OpcionesProducto {
+  conQueso: boolean;
+  cebollaYCilantro: boolean;
+  cebollaAsada: boolean;
+  sinVerdura: boolean;
+}
+
+export interface ProductoMenu {
+  id_producto: number;
+  nombre: string;
+  precio: number;
+  disponible: boolean;
+  cantidad: number;
+  opciones: OpcionesProducto;
+}
+
+export interface OpcionGuardada {
+  nombre: string;
+  cantidad: number;
+  opciones: OpcionesProducto;
+}
+
+export interface Configuracion {
+  estado: 'abierto' | 'cerrado';
+  horaApertura: string;
+  horaCierre: string;
+  mensaje: string;
+}
 
 @Component({
   standalone: true,
   selector: 'app-menu',
-  imports: [FormsModule, NgFor, NgIf, RouterModule, CommonModule],
+  imports: [FormsModule, RouterModule, CommonModule],
   templateUrl: './menu.html',
   styleUrl: './menu.css',
 })
-export class Menu implements OnInit {
+export class Menu implements OnInit, OnDestroy {
 
-  productos: any[] = [];
-  usuarioActual: any = null;
-  configuracion: any = {
+  private readonly router     = inject(Router);
+  private readonly dbService  = inject(DatabaseService);
+  private readonly platformId = inject(PLATFORM_ID);
+
+  productos: ProductoMenu[] = [];
+  usuarioActual: Usuario | null = null;
+  horaActual = '';
+  isLoading = false;
+  configuracion: Configuracion = {
     estado: 'abierto',
     horaApertura: '10:00',
     horaCierre: '22:00',
-    mensaje: 'Los pedidos están cerrados en este momento'
+    mensaje: 'Los pedidos están cerrados en este momento',
   };
-  horaActual: string = '';
 
-  constructor(private router: Router) {
-    this.actualizarHora();
-  }
+  private clockInterval: ReturnType<typeof setInterval> | null = null;
 
-  ngOnInit() {
-    // Obtener el usuario actual de la sesión
-    const sesion = localStorage.getItem('sesion');
-    const usuarioGuardado = localStorage.getItem('usuarioActual');
-    
-    if (sesion) {
-      this.usuarioActual = JSON.parse(sesion);
-    } else if (usuarioGuardado) {
-      this.usuarioActual = JSON.parse(usuarioGuardado);
-    } else {
+  // ── Lifecycle ────────────────────────────────────────────────────────────────────────────────
+
+  ngOnInit(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const sesion = sessionStorage.getItem('usuario');
+    if (!sesion) {
       alert('Debes iniciar sesión primero');
       this.router.navigate(['/']);
       return;
     }
-    
+
+    try {
+      this.usuarioActual = JSON.parse(sesion) as Usuario;
+    } catch {
+      alert('Sesión inválida. Por favor inicia sesión de nuevo.');
+      this.router.navigate(['/']);
+      return;
+    }
+
+    this.actualizarHora();
+    this.clockInterval = setInterval(() => this.actualizarHora(), 60_000);
     this.cargarConfiguracion();
-    this.cargar();
-    
-    // Actualizar hora cada minuto
-    setInterval(() => {
-      this.actualizarHora();
-    }, 60000);
+    this.cargarProductos();
   }
 
-  actualizarHora() {
-    const ahora = new Date();
-    this.horaActual = ahora.toLocaleTimeString('es-MX', { 
-      hour: '2-digit', 
+  ngOnDestroy(): void {
+    if (this.clockInterval !== null) {
+      clearInterval(this.clockInterval);
+    }
+  }
+
+  // ── Clock ──────────────────────────────────────────────────────────────────
+
+  private actualizarHora(): void {
+    this.horaActual = new Date().toLocaleTimeString('es-MX', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: false 
+      hour12: false,
     });
   }
 
-  cargarConfiguracion() {
-    const config = localStorage.getItem('configuracion');
-    if (config) {
-      this.configuracion = JSON.parse(config);
+  // ── Configuration ──────────────────────────────────────────────────────────
+
+  private cargarConfiguracion(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const raw = localStorage.getItem('configuracion');
+    if (!raw) return;
+    try {
+      this.configuracion = JSON.parse(raw) as Configuracion;
+    } catch {
+      console.warn('configuracion in localStorage is malformed; using defaults.');
     }
   }
 
+  // ── Products ───────────────────────────────────────────────────────────────
+
+  async cargarProductos(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const data: Producto[] = await this.dbService.getProductos();
+      this.productos = data
+        .filter((p: Producto) => p.disponible !== false)
+        .map((p: Producto) => ({
+          ...p,
+          disponible: p.disponible ?? true,
+          cantidad: 0,
+          opciones: {
+            conQueso: false,
+            cebollaYCilantro: false,
+            cebollaAsada: false,
+            sinVerdura: false,
+          },
+        }));
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+      alert('No se pudieron cargar los productos. Intenta de nuevo.');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // ── Business rules ─────────────────────────────────────────────────────────
+
   pedidosPermitidos(): boolean {
     if (!this.configuracion) return false;
-    
-    // Si el admin cerró manualmente los pedidos
-    if (this.configuracion.estado === 'cerrado') {
-      return false;
-    }
-    
-    // Verificar horario
+    if (this.configuracion.estado === 'cerrado') return false;
+
     const ahora = new Date();
-    const horaActualNum = ahora.getHours() * 60 + ahora.getMinutes();
-    
-    const [horaApertura, minutoApertura] = this.configuracion.horaApertura.split(':').map(Number);
-    const [horaCierre, minutoCierre] = this.configuracion.horaCierre.split(':').map(Number);
-    
-    const aperturaNum = horaApertura * 60 + minutoApertura;
-    const cierreNum = horaCierre * 60 + minutoCierre;
-    
-    return horaActualNum >= aperturaNum && horaActualNum <= cierreNum;
+    const horaActualMin = ahora.getHours() * 60 + ahora.getMinutes();
+    const [horaAp, minAp] = this.configuracion.horaApertura.split(':').map(Number);
+    const [horaCi, minCi] = this.configuracion.horaCierre.split(':').map(Number);
+
+    return (
+      horaActualMin >= horaAp * 60 + minAp &&
+      horaActualMin <= horaCi * 60 + minCi
+    );
   }
 
   getMensajeEstado(): string {
     if (this.configuracion.estado === 'cerrado') {
       return this.configuracion.mensaje || 'Los pedidos están cerrados por el administrador';
     }
-    
-    if (!this.pedidosPermitidos()) {
-      return `Horario de atención: ${this.configuracion.horaApertura} a ${this.configuracion.horaCierre}`;
-    }
-    
-    return '';
+    return `Horario de atención: ${this.configuracion.horaApertura} a ${this.configuracion.horaCierre}`;
   }
 
-  cargar() {
-    const datos = localStorage.getItem('inventario') || '[]';
-    const inventario = JSON.parse(datos);
+  // ── Product quantity helpers ───────────────────────────────────────────────
 
-    this.productos = inventario
-      .filter((p: any) => p.tipo === 'comida')
-      .map((p: any) => ({
-        nombre: p.nombre,
-        precio: this.obtenerPrecio(p.nombre),
-        disponible: p.disponible, // Cambiado a usar disponible booleano
-        cantidad: 0,
-        opciones: {
-          conQueso: false,
-          cebollaYCilantro: false,
-          cebollaAsada: false,
-          sinVerdura: false
-        }
-      }));
+  agregar(p: ProductoMenu): void { p.cantidad++; }
+
+  quitar(p: ProductoMenu): void { if (p.cantidad > 0) p.cantidad--; }
+
+  hayProductosSeleccionados(): boolean {
+    return this.productos.some(p => p.cantidad > 0);
   }
 
-  obtenerPrecio(nombre: string) {
-    if (nombre.includes('Taco')) return 15;
-    if (nombre.includes('Quesadilla')) return 25;
-    return 20;
-  }
+  // ── Topping toggles ────────────────────────────────────────────────────────
 
-  agregar(p: any) {
-    p.cantidad++;
-  }
-
-  quitar(p: any) {
-    if (p.cantidad > 0) {
-      p.cantidad--;
-    }
-  }
-  
-  toggleSinVerdura(p: any) {
+  toggleSinVerdura(p: ProductoMenu): void {
     if (p.opciones.sinVerdura) {
       p.opciones.cebollaYCilantro = false;
-      p.opciones.cebollaAsada = false;
+      p.opciones.cebollaAsada     = false;
     }
   }
 
-  quitarSinVerdura(p: any) {
+  quitarSinVerdura(p: ProductoMenu): void {
     if (p.opciones.cebollaYCilantro || p.opciones.cebollaAsada) {
       p.opciones.sinVerdura = false;
     }
   }
 
-  // Nuevo método para agregar todo el pedido
-  agregarPedidoCompleto() {
-    // Verificar si los pedidos están permitidos
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private calcularSubtotal(p: ProductoMenu): number {
+    const base  = p.precio * p.cantidad;
+    const queso = p.opciones.conQueso ? QUESO_EXTRA_PRICE * p.cantidad : 0;
+    return base + queso;
+  }
+
+  buildOpcionesLabel(p: ProductoMenu): string[] {
+    const tags: string[] = [];
+    if (p.opciones.conQueso) tags.push('Con queso');
+    if (p.opciones.sinVerdura) {
+      tags.push('Sin verdura');
+    } else {
+      if (p.opciones.cebollaYCilantro) tags.push('Cebolla y cilantro');
+      if (p.opciones.cebollaAsada)     tags.push('Cebolla asada');
+    }
+    return tags;
+  }
+
+  private resetProductos(): void {
+    this.productos.forEach(p => {
+      p.cantidad = 0;
+      p.opciones = {
+        conQueso: false,
+        cebollaYCilantro: false,
+        cebollaAsada: false,
+        sinVerdura: false,
+      };
+    });
+  }
+
+  // ── Order submission ───────────────────────────────────────────────────────
+
+  async agregarPedidoCompleto(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     if (!this.pedidosPermitidos()) {
-      alert(this.getMensajeEstado() || 'Los pedidos no están disponibles en este momento');
+      alert(this.getMensajeEstado() || 'Los pedidos no están disponibles');
       return;
     }
 
@@ -163,80 +241,57 @@ export class Menu implements OnInit {
       return;
     }
 
-    // Verificar si hay productos seleccionados
     const productosSeleccionados = this.productos.filter(p => p.cantidad > 0);
-    
     if (productosSeleccionados.length === 0) {
       alert('Selecciona al menos un producto');
       return;
     }
 
-    // Verificar disponibilidad de todos los productos
-    const inventario = JSON.parse(localStorage.getItem('inventario') || '[]');
-    
-    for (let p of productosSeleccionados) {
-      const prod = inventario.find((x: any) => x.nombre === p.nombre);
-      
-      if (!prod || !prod.disponible) {
-        alert(`${p.nombre} no está disponible`);
-        return;
-      }
-    }
+    this.isLoading = true;
+    try {
+      const total = productosSeleccionados.reduce(
+        (sum, p) => sum + this.calcularSubtotal(p),
+        0
+      );
 
-    // Obtener el carrito del usuario actual
-    const keyCarrito = `carrito_${this.usuarioActual.id}`;
-    let carrito = JSON.parse(localStorage.getItem(keyCarrito) || '[]');
+      const pedido: Pedido = await this.dbService.createPedido({
+        fecha:      new Date().toISOString(),
+        estado:     'pendiente',
+        total,
+        id_usuario: this.usuarioActual.id_usuario,
+      } as Omit<Pedido, 'id_pedido'>);
 
-    // Agregar cada producto seleccionado al carrito
-    for (let p of productosSeleccionados) {
-      let opcionesSeleccionadas = [];
+      const detalles = productosSeleccionados.map(p => ({
+        cantidad:    p.cantidad,
+        subtotal:    this.calcularSubtotal(p),
+        id_pedido:   pedido.id_pedido,
+        id_producto: p.id_producto,
+      }));
 
-      if (p.opciones.conQueso) opcionesSeleccionadas.push('Con queso');
-      
-      if (!p.opciones.sinVerdura) {
-        if (p.opciones.cebollaYCilantro) opcionesSeleccionadas.push('Cebolla y cilantro');
-        if (p.opciones.cebollaAsada) opcionesSeleccionadas.push('Cebolla asada');
-      } else {
-        opcionesSeleccionadas.push('Sin verdura');
-      }
+      await this.dbService.createDetalles(detalles);
 
-      carrito.push({
-        nombre: p.nombre,
+      sessionStorage.setItem('pedidoActual', JSON.stringify(pedido));
+      const opcionesMenu: OpcionGuardada[] = productosSeleccionados.map(p => ({
+        nombre:   p.nombre,
         cantidad: p.cantidad,
-        precio: p.precio,
-        opciones: opcionesSeleccionadas,
-        fecha: new Date().toISOString()
-      });
+        opciones: p.opciones,
+      }));
+      sessionStorage.setItem('opcionesMenu', JSON.stringify(opcionesMenu));
 
-      // Actualizar inventario (marcar como no disponible si era el último)
-      const prod = inventario.find((x: any) => x.nombre === p.nombre);
-      if (prod) {
-        prod.disponible = false; // Se agota después de la compra
-      }
+      alert('¡Productos agregados al pedido!');
+      this.resetProductos();
+      this.router.navigate(['/bebidas']);
+
+    } catch (error: unknown) {
+      console.error('Error al crear pedido:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      alert(`Error al guardar el pedido: ${errorMessage}. Intenta de nuevo.`);
+    } finally {
+      this.isLoading = false;
     }
-
-    // Guardar en el carrito del usuario específico
-    localStorage.setItem(keyCarrito, JSON.stringify(carrito));
-    localStorage.setItem('inventario', JSON.stringify(inventario));
-
-    alert('¡Pedido agregado correctamente!');
-
-    // Resetear cantidades y opciones
-    this.productos.forEach(p => {
-      p.cantidad = 0;
-      p.opciones = {
-        conQueso: false,
-        cebollaYCilantro: false,
-        cebollaAsada: false,
-        sinVerdura: false
-      };
-    });
-
-    // Ir a bebidas
-    this.router.navigate(['/bebidas']);
   }
 
-  siguiente() {
+  siguiente(): void {
     if (!this.pedidosPermitidos()) {
       alert(this.getMensajeEstado() || 'Los pedidos están cerrados');
       return;
@@ -244,13 +299,10 @@ export class Menu implements OnInit {
     this.router.navigate(['/bebidas']);
   }
 
-  regresar() {
+  regresar(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      sessionStorage.removeItem('usuario');
+    }
     this.router.navigate(['/']);
-  }
-
-  hayProductosSeleccionados(): boolean {
-    return this.productos.some(function(producto) {
-      return producto.cantidad > 0;
-    });
   }
 }

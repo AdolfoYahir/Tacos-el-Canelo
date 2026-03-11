@@ -1,67 +1,59 @@
-<div class="container mt-5">
+<div class="registro-container">
 
-  <h2 class="text-center">Registro</h2>
+  <h1>Registro</h1>
 
-  <input class="form-control my-2"
-         placeholder="Nombre completo"
-         [(ngModel)]="nombre">
-       
-  <small class="text-muted">
-    Ingresa un nombre puede ser tu nombre real o un apodo
-  </small>
+  <input
+    type="text"
+    placeholder="Nombre completo"
+    [(ngModel)]="nombre"
+    class="input-field"
+  />
+  <p class="hint">Ingresa un nombre, puede ser tu nombre real o un apodo</p>
 
-  <input class="form-control my-2"
-         placeholder="Número de teléfono"
-         [(ngModel)]="telefono"
-         maxlength="10">
+  <input
+    type="tel"
+    placeholder="Número de teléfono"
+    [(ngModel)]="telefono"
+    class="input-field"
+    maxlength="10"
+  />
+  <p class="hint">Ingresa un número de 10 dígitos sin espacios ni guiones</p>
 
-  <small class="text-muted">
-    Ingresa un número de 10 dígitos sin espacios ni guiones
-  </small>
+  <input
+    type="text"
+    placeholder="Dirección"
+    [(ngModel)]="direccion"
+    class="input-field"
+  />
+  <p class="hint">Escribe la colonia, la calle seguida de # y número. Ejemplo: Tres Enturias Tiburones #205</p>
 
-  <input class="form-control my-2"
-         placeholder="Dirección"
-         [(ngModel)]="direccion">
+  <input
+    [type]="mostrarContrasena ? 'text' : 'password'"
+    placeholder="Contraseña"
+    [(ngModel)]="contrasena"
+    class="input-field"
+  />
 
-  <small class="text-muted">
-    Escribe la colonia, la calle seguida de # y número. Ejemplo: Tres Enturias Tiburones #205
-  </small>
+  <input
+    [type]="mostrarContrasena ? 'text' : 'password'"
+    placeholder="Confirmar contraseña"
+    [(ngModel)]="confirmarContrasena"
+    class="input-field"
+  />
 
-  <input [type]="mostrarPassword ? 'text' : 'password'"
-         class="form-control my-2"
-         placeholder="Contraseña"
-         [(ngModel)]="pass1">
-
-  <input [type]="mostrarPassword ? 'text' : 'password'"
-         class="form-control my-2"
-         placeholder="Confirmar contraseña"
-         [(ngModel)]="pass2">
-
-  <div class="form-check mb-3">
-    <input class="form-check-input"
-           type="checkbox"
-           [(ngModel)]="mostrarPassword"
-           id="mostrarPass">
-
-    <label class="form-check-label" for="mostrarPass">
-      Mostrar contraseña
-    </label>
-       <div>
-              <small class="text-muted">
-              Procura que tu contraseña sea fácil de recordar pero difícil de adivinar. Evita usar tu nombre o teléfono.
-              </small>
-
-       </div>
+  <div class="mostrar-contrasena">
+    <input type="checkbox" [(ngModel)]="mostrarContrasena" id="mostrar" />
+    <label for="mostrar"><strong>Mostrar contraseña</strong></label>
   </div>
+  <p class="hint">Procura que tu contraseña sea fácil de recordar pero difícil de adivinar. Evita usar tu nombre o teléfono.</p>
 
-  <button class="btn btn-success w-100 mt-3"
-          (click)="registrar()">
-    Registrarse
+  <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
+
+  <button class="btn-registrar" (click)="registrarse()" [disabled]="cargando">
+    {{ cargando ? 'Registrando...' : 'Registrarse' }}
   </button>
 
-  <button class="btn btn-primary w-100 mt-2"
-          (click)="regresarLogin()">
+  <button class="btn-regresar" (click)="irALogin()">
     Regresar a login
   </button>
-
 </div>

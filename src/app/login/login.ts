@@ -1,91 +1,71 @@
 import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { DatabaseService } from '../database';
+import { Usuario } from '../models/database.models';
 
 @Component({
-  standalone: true,
   selector: 'app-login',
-  imports: [FormsModule],
-  templateUrl: './login.html'
+  standalone: true,
+  imports: [FormsModule, CommonModule],
+  templateUrl: './login.html',
+  styleUrls: ['./login.css']
 })
 export class Login {
 
-  usuario = '';
-  password = '';
+  nombre: string = '';
+  contrasena: string = '';
+  errorMsg: string = '';
+  cargando: boolean = false;
 
-  constructor(private router: Router) {}
+  constructor(
+    private dbService: DatabaseService,
+    private router: Router
+  ) {}
 
-  ingresar() {
-    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+  async iniciarSesion() {
+    this.errorMsg = '';
 
-    const usuarioInput = this.usuario.trim();
-    const passwordInput = this.password.trim();
+    const nombreTrimmed = this.nombre.trim();
+    const contrasenaTrimmed = this.contrasena.trim();
 
-    if (!usuarioInput && !passwordInput) {
-      alert('Ingrese sus datos o regístrese');
+    if (!nombreTrimmed || !contrasenaTrimmed) {
+      this.errorMsg = 'Por favor completa todos los campos.';
       return;
     }
 
-    if (!usuarioInput) {
-      alert('Ingrese usuario o teléfono');
-      return;
-    }
+    this.cargando = true;
 
-    if (!passwordInput) {
-      alert('Ingrese la contraseña');
-      return;
-    }
+    try {
+      // Query filtered server-side: avoids fetching all users to the client
+      const usuario: Usuario | null = await this.dbService.getUsuarioPorCredenciales(
+        nombreTrimmed,
+        contrasenaTrimmed
+      );
 
-    const encontrado = usuarios.find(
-      (u: any) =>
-        u.usuario === usuarioInput ||
-        u.telefono === usuarioInput
-    );
+      if (!usuario) {
+        this.errorMsg = 'Usuario o contraseña incorrectos.';
+        return;
+      }
 
-    if (!encontrado) {
-      alert('Usuario no encontrado. Debe registrarse');
-      this.router.navigate(['/registro']);
-      return;
-    }
+      sessionStorage.setItem('usuario', JSON.stringify(usuario));
 
-    if (encontrado.password !== passwordInput) {
-      alert('Contraseña incorrecta');
-      return;
-    }
+      if (usuario.rol === 'admin') {
+        this.router.navigate(['/admin']);
+      } else {
+        this.router.navigate(['/menu']);
+      }
 
-    // Guardar sesión del usuario
-    localStorage.setItem('sesion', JSON.stringify(encontrado));
-    
-    // También guardar usuarioActual para mantener consistencia
-    localStorage.setItem('usuarioActual', JSON.stringify({
-      id: encontrado.id,
-      usuario: encontrado.usuario,
-      rol: encontrado.rol,
-      telefono: encontrado.telefono,
-      direccion: encontrado.direccion
-    }));
-
-    alert('Bienvenido ' + encontrado.usuario);
-
-    if (encontrado.rol === 'admin') {
-      this.router.navigate(['/admin']);
-    } else {
-      this.router.navigate(['/menu']);
+    } catch (error) {
+      this.errorMsg = 'Error al conectar con la base de datos.';
+      console.error(error);
+    } finally {
+      this.cargando = false;
     }
   }
 
-  olvidarPassword() {
-    alert('Contacta al administrador o vuelve a registrarte');
-  }
-
-  registrarse() {
-    alert('Redirigiendo a registro');
+  irARegistro() {
     this.router.navigate(['/registro']);
-  }
-
-  pasar(){
-    // Método solo para pruebas - deberías eliminarlo en producción
-    alert("Acceso de prueba");
-    this.router.navigate(['/menu']);
   }
 }
