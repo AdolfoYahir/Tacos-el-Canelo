@@ -1,41 +1,131 @@
-<div class="login-container">
+<div class="login-page container py-4 py-md-5">
+  <div class="login-inner mx-auto">
+    <div class="logo-section text-center mb-4">
+      <img src="img/Logo.png" alt="Tacos El Canelo" class="logo" />
+      <h1 class="login-title">Tacos El Canelo</h1>
+      <p class="text-muted mb-0">Accede o regístrate con correo y contraseña</p>
+    </div>
 
-  <div class="logo-section">
-    <img src="img/Logo.png" alt="Tacos El Canelo" class="logo" />
-    <h1>Iniciar sesión</h1>
-  </div>
+    <p class="alert alert-danger py-2 small mb-2" *ngIf="errorMsg" role="alert">{{ errorMsg }}</p>
+    <p class="alert alert-success py-2 small mb-2" *ngIf="exitoMsg" role="status">{{ exitoMsg }}</p>
 
-  <div class="form-section">
+    <!-- Perfil faltante tras Google: mismo sitio, sin ir a otra ruta -->
+    <div *ngIf="mostrarCompletarGoogle" class="card shadow-sm border-0 login-card">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-2">Completa tu perfil</h2>
+        <p class="text-muted small mb-4">
+          Tu cuenta de Google ya está verificada. Solo faltan datos de contacto para pedidos y entregas.
+        </p>
+        <label class="form-label small fw-semibold">Teléfono (10 dígitos)</label>
+        <input
+          type="tel"
+          class="form-control mb-3"
+          maxlength="10"
+          [(ngModel)]="googleTelefono"
+          placeholder="4421234567"
+          autocomplete="tel"
+        />
+        <label class="form-label small fw-semibold">Dirección</label>
+        <input
+          type="text"
+          class="form-control mb-4"
+          [(ngModel)]="googleDireccion"
+          placeholder="Calle, número, colonia"
+          autocomplete="street-address"
+        />
+        <button type="button" class="btn btn-success w-100 py-2 mb-2" (click)="guardarPerfilGoogle()" [disabled]="cargando">
+          {{ cargando ? 'Guardando...' : 'Guardar y continuar' }}
+        </button>
+        <button type="button" class="btn btn-link w-100 text-decoration-none" (click)="cancelarCompletarGoogle()">
+          Usar otra cuenta
+        </button>
+      </div>
+    </div>
 
-    <input
-      type="text"
-      placeholder="Usuario"
-      [(ngModel)]="nombre"
-      class="input-field"
-    />
+    <ng-container *ngIf="!mostrarCompletarGoogle">
+      <ul class="nav nav-pills nav-fill login-tabs mb-4 gap-2" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            type="button"
+            class="nav-link w-100"
+            [class.active]="vista === 'ingresar'"
+            (click)="setVista('ingresar')"
+          >
+            Iniciar sesión
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            type="button"
+            class="nav-link w-100"
+            [class.active]="vista === 'crear_cuenta'"
+            (click)="setVista('crear_cuenta')"
+          >
+            Crear cuenta
+          </button>
+        </li>
+      </ul>
 
-    <input
-      type="password"
-      placeholder="Contrasena"
-      [(ngModel)]="contrasena"
-      class="input-field"
-    />
+      <div class="card shadow-sm border-0 login-card mb-3" *ngIf="vista === 'ingresar'">
+        <div class="card-body p-4">
+          <label class="form-label small fw-semibold">Correo electrónico</label>
+          <input
+            type="email"
+            class="form-control mb-3"
+            [(ngModel)]="loginEmail"
+            autocomplete="username"
+          />
+          <label class="form-label small fw-semibold">Contraseña</label>
+          <input
+            type="password"
+            class="form-control mb-3"
+            [(ngModel)]="loginPassword"
+            autocomplete="current-password"
+          />
+          <button type="button" class="btn btn-entrar w-100 py-2 mb-3" (click)="ingresarConEmail()" [disabled]="cargando">
+            {{ cargando ? 'Entrando...' : 'Entrar' }}
+          </button>
+          <div class="text-center">
+            <button
+              type="button"
+              class="btn btn-link btn-sm text-decoration-none p-0 forgot-link"
+              (click)="restablecerContrasena()"
+              [disabled]="cargando"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
+        </div>
+      </div>
 
-    <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
+      <div *ngIf="vista === 'ingresar'" class="login-google-wrap mb-4">
+        <button type="button" class="btn-google w-100" (click)="loginConGoogle()" [disabled]="cargando">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="20" height="20" />
+          {{ cargando ? 'Conectando...' : 'Continuar con Google' }}
+        </button>
+      </div>
 
-    <button
-      class="btn-entrar"
-      (click)="iniciarSesion()"
-      [disabled]="cargando"
-    >
-      {{ cargando ? 'Cargando...' : 'Entrar' }}
-    </button>
+      <div class="card shadow-sm border-0 login-card mb-4" *ngIf="vista === 'crear_cuenta'">
+        <div class="card-body p-4">
+          <p class="text-muted small mb-3">
+            La contraseña la guarda Firebase de forma segura; no la almacenamos en texto en la base de datos.
+          </p>
+          <label class="form-label small fw-semibold">Nombre</label>
+          <input type="text" class="form-control mb-3" [(ngModel)]="regNombre" autocomplete="name" placeholder="Tu nombre" />
+          <label class="form-label small fw-semibold">Correo</label>
+          <input type="email" class="form-control mb-3" [(ngModel)]="regEmail" autocomplete="email" placeholder="correo@ejemplo.com" />
+          <label class="form-label small fw-semibold">Contraseña (mín. 6 caracteres)</label>
+          <input type="password" class="form-control mb-3" [(ngModel)]="regPassword" autocomplete="new-password" />
+          <label class="form-label small fw-semibold">Teléfono (10 dígitos)</label>
+          <input type="tel" class="form-control mb-3" [(ngModel)]="regTelefono" maxlength="10" autocomplete="tel" />
+          <label class="form-label small fw-semibold">Dirección</label>
+          <input type="text" class="form-control mb-4" [(ngModel)]="regDireccion" autocomplete="street-address" />
+          <button type="button" class="btn btn-registrar w-100 py-2" (click)="crearCuenta()" [disabled]="cargando">
+            {{ cargando ? 'Creando cuenta...' : 'Crear cuenta' }}
+          </button>
+        </div>
+      </div>
 
-    <button class="btn-registrar" (click)="irARegistro()">
-      Registrarse
-    </button>
-
-    <a class="link-olvide">¿Se te olvidó la contraseña?</a>
-
+    </ng-container>
   </div>
 </div>

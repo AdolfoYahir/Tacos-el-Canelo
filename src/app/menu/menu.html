@@ -18,10 +18,6 @@
     <button class="btn btn-secondary" (click)="regresar()">
       ← Cerrar sesión
     </button>
-    
-    <button class="btn btn-info" (click)="siguiente()">
-      Ir a Bebidas →
-    </button>
   </div>
   
   <!-- Mensaje si no hay productos -->
@@ -31,7 +27,7 @@
   
   <!-- Lista de productos -->
   <div class="row">
-    <div *ngFor="let producto of productos" class="col-md-6 mb-4">
+    <div *ngFor="let producto of productos" class="col-12 mb-4">
       <div class="card h-100" [class.border-danger]="!producto.disponible" [class.border-success]="producto.disponible">
         
         <div class="card-body">
@@ -68,7 +64,7 @@
           </div>
           
           <!-- Opción de QUESO (destacada) -->
-          <div class="card bg-warning bg-opacity-25 mb-3 p-2" *ngIf="producto.cantidad > 0">
+          <div class="card bg-warning bg-opacity-25 mb-3 p-2" *ngIf="mostrarOpcionQuesoExtra(producto)">
             <div class="form-check">
               <input class="form-check-input" 
                      type="checkbox" 
@@ -81,7 +77,7 @@
           </div>
           
           <!-- Opciones de verduras (solo si hay cantidad) -->
-          <div *ngIf="producto.cantidad > 0" class="verduras-opciones border-top pt-3">
+          <div *ngIf="producto.cantidad > 0 && producto.categoria !== 'bebida'" class="verduras-opciones border-top pt-3">
             <p class="fw-bold mb-2">Verduras:</p>
             
             <div class="form-check mb-2">

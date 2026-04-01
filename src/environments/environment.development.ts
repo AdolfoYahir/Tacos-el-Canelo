@@ -1,7 +1,7 @@
 export const environment = {
-  production: true,
-  /** Si despliegas el API en el mismo dominio, usa '/api'; si no, null y el menú usa solo Firebase. */
-  apiBaseUrl: null as string | null,
+  production: false,
+  /** Base URL del API Node (proxy en dev → backend/server.mjs puerto 3000). */
+  apiBaseUrl: '/api',
   firebase: {
     apiKey: 'AIzaSyDTgJ0Pa5PHSQqmXtR91o7QB8b5MEHwGVI',
     authDomain: 'tacos-el-canelo.firebaseapp.com',

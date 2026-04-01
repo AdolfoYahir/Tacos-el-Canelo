@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { DatabaseService } from '../database';
+import { auth, db } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 @Component({
   selector: 'app-registro',
@@ -13,25 +14,20 @@ import { DatabaseService } from '../database';
 })
 export class Registro {
 
-  nombre: string = '';
+  private platformId = inject(PLATFORM_ID);
   telefono: string = '';
   direccion: string = '';
-  contrasena: string = '';
-  confirmarContrasena: string = '';
-  mostrarContrasena: boolean = false;
   errorMsg: string = '';
   cargando: boolean = false;
 
-  constructor(
-    private dbService: DatabaseService,
-    private router: Router
-  ) {}
+  constructor(private router: Router) {}
 
-  async registrarse() {
+  async completarPerfil() {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.errorMsg = '';
 
-    // Validaciones
-    if (!this.nombre || !this.telefono || !this.direccion || !this.contrasena || !this.confirmarContrasena) {
+    if (!this.telefono || !this.direccion) {
       this.errorMsg = 'Por favor completa todos los campos.';
       return;
     }
@@ -41,37 +37,35 @@ export class Registro {
       return;
     }
 
-    if (this.contrasena !== this.confirmarContrasena) {
-      this.errorMsg = 'Las contraseñas no coinciden.';
+    const user = auth.currentUser;
+    if (!user) {
+      this.errorMsg = 'Sesión expirada. Inicia sesión de nuevo.';
+      this.router.navigate(['/']);
       return;
     }
 
     this.cargando = true;
 
     try {
-      // Verificar que el nombre no esté en uso
-      const usuarios = await this.dbService.getUsuarios();
-      const existe = usuarios.find(u => u.nombre === this.nombre);
-      if (existe) {
-        this.errorMsg = 'Ese nombre de usuario ya está en uso.';
-        return;
-      }
-
-      // Crear usuario
-      await this.dbService.createUsuario({
-        nombre: this.nombre,
-        correo: this.telefono,   // usamos correo para guardar el teléfono
-        contrasena: this.contrasena,
-        rol: 'cliente',
+      const usuario = {
+        nombre: user.displayName ?? '',
+        correo: user.email ?? '',
         telefono: this.telefono,
-        direccion: this.direccion
-      });
+        direccion: this.direccion.trim(),
+        rol: 'cliente',
+        contrasena: ''
+      };
 
-      // Redirigir al login
-      this.router.navigate(['/']);
+      await setDoc(doc(db, 'usuario', user.uid), usuario);
+
+      const usuarioCompleto = { id_usuario: user.uid, ...usuario };
+      localStorage.setItem('usuario', JSON.stringify(usuarioCompleto));
+      sessionStorage.setItem('usuario', JSON.stringify(usuarioCompleto));
+
+      this.router.navigate(['/menu']);
 
     } catch (error) {
-      this.errorMsg = 'Error al registrar. Intenta de nuevo.';
+      this.errorMsg = 'Error al guardar perfil. Intenta de nuevo.';
       console.error(error);
     } finally {
       this.cargando = false;

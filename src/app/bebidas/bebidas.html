@@ -5,10 +5,10 @@
     <h2>Bebidas</h2>
     <div class="text-end">
       <div *ngIf="!pedidosPermitidos()" class="estado-cerrado text-danger">
-        ⚠️ Los pedidos están cerrados
+        Los pedidos están cerrados
       </div>
       <div *ngIf="pedidosPermitidos()" class="estado-abierto text-success">
-        ✅ Pedidos abiertos
+        Pedidos abiertos
       </div>
     </div>
   </div>
@@ -44,7 +44,7 @@
             <span class="badge" 
                   [class.bg-success]="bebida.disponible"
                   [class.bg-secondary]="!bebida.disponible">
-              {{ bebida.disponible ? '✅ Disponible' : '❌ Agotado' }}
+              {{ bebida.disponible ? 'Disponible' : 'Agotado' }}
             </span>
           </div>
           
@@ -85,7 +85,7 @@
           <button class="btn btn-success btn-lg px-5" 
                   (click)="agregarPedidoCompleto()"
                   [disabled]="!pedidosPermitidos() || !hayBebidasSeleccionadas()">
-            🥤 AGREGAR BEBIDAS AL PEDIDO
+            AGREGAR BEBIDAS AL PEDIDO
           </button>
         </div>
       </div>

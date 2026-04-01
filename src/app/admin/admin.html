@@ -1,129 +1,166 @@
 <div class="admin-container container mt-4">
-  
-  <!-- Header con estado de pedidos -->
+
+  <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Panel de Administración</h2>
     <button class="btn btn-danger" (click)="cerrarSesion()">
       Cerrar Sesión
     </button>
   </div>
-  
-  <!-- Control de apertura/cierre de pedidos -->
+
+  <!-- Mensajes de feedback -->
+  <div *ngIf="exitoMsg" class="alert alert-success">{{ exitoMsg }}</div>
+  <div *ngIf="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+  <!-- ─────────────────────────────────────────
+       SECCIÓN: Pedidos activos
+  ───────────────────────────────────────── -->
   <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">Control de Pedidos</h5>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Pedidos Activos</h5>
+      <button class="btn btn-light btn-sm" (click)="cargarPedidos()">↻ Actualizar</button>
     </div>
     <div class="card-body">
-      <div class="row">
-        <div class="col-md-6">
-          <div class="form-group mb-3">
-            <label>Estado de pedidos:</label>
-            <div class="d-flex align-items-center">
-              <span class="badge me-3" 
-                    [class.bg-success]="pedidosEstado === 'abierto'"
-                    [class.bg-danger]="pedidosEstado === 'cerrado'"
-                    style="font-size: 1.2rem; padding: 0.5rem 1rem;">
-                {{ pedidosEstado === 'abierto' ? 'ABIERTO' : 'CERRADO' }}
-              </span>
-              <button class="btn" 
-                      [class.btn-success]="pedidosEstado === 'cerrado'"
-                      [class.btn-danger]="pedidosEstado === 'abierto'"
-                      (click)="cambiarEstadoPedidos()">
-                {{ pedidosEstado === 'abierto' ? 'Cerrar Pedidos' : 'Abrir Pedidos' }}
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="col-md-6">
-          <div class="form-group mb-3">
-            <label>Horario de atención:</label>
-            <div class="d-flex gap-2">
-              <input type="time" class="form-control" [(ngModel)]="horaApertura">
-              <span class="align-self-center">a</span>
-              <input type="time" class="form-control" [(ngModel)]="horaCierre">
-              <button class="btn btn-primary" (click)="guardarHorarios()">
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="col-12">
-          <div class="form-group">
-            <label>Mensaje para clientes (cuando está cerrado):</label>
-            <textarea class="form-control" 
-                      [(ngModel)]="mensajePersonalizado" 
-                      rows="2"
-                      placeholder="Ej: Estamos cerrados, vuelva mañana..."></textarea>
-            <small class="text-muted">Este mensaje se mostrará a los clientes cuando intenten pedir</small>
-          </div>
-        </div>
+
+      <div *ngIf="cargandoPedidos" class="text-center">
+        <p>Cargando pedidos...</p>
       </div>
+
+      <div *ngIf="!cargandoPedidos && pedidos.length === 0" class="alert alert-info mb-0">
+        <p class="mb-1">No hay pedidos registrados.</p>
+        <small class="text-muted">
+          Si ya confirmaste uno: debe guardarse en Firestore (colección <code>pedido</code>). Entra con <strong>Google</strong>
+          (no invitado) para poder crear pedidos si tus reglas exigen autenticación. En <strong>/pago</strong> pulsa
+          «Confirmar pedido» para que se registre el pedido desde el carrito.
+        </small>
+      </div>
+
+      <table *ngIf="!cargandoPedidos && pedidos.length > 0" class="table table-striped">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Usuario</th>
+            <th>Total</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Cambiar Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of pedidos">
+            <td>{{ p.id_pedido }}</td>
+            <td>{{ p.usuario?.nombre || p.id_usuario }}</td>
+            <td>${{ p.total | number:'1.2-2' }}</td>
+            <td>{{ p.fecha | date:'short' }}</td>
+            <td>
+              <span class="badge"
+                [class.bg-secondary]="p.estado === 'pendiente'"
+                [class.bg-warning]="p.estado === 'preparando'"
+                [class.bg-info]="p.estado === 'listo'"
+                [class.bg-success]="p.estado === 'entregado'">
+                {{ p.estado }}
+              </span>
+            </td>
+            <td>
+              <select class="form-select form-select-sm"
+                      [value]="p.estado"
+                      (change)="cambiarEstadoPedido(p, $any($event.target).value)">
+                <option *ngFor="let e of estados" [value]="e">{{ e }}</option>
+              </select>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
     </div>
   </div>
-  
+
+  <!-- ─────────────────────────────────────────
+       SECCIÓN: Agregar Producto
+  ───────────────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header bg-success text-white">
       <h5 class="mb-0">Agregar Producto</h5>
     </div>
     <div class="card-body">
-      <div class="row">
-        <div class="col-md-5">
-          <input type="text" 
-                 class="form-control" 
-                 placeholder="Nombre del producto" 
-                 [(ngModel)]="nuevo">
-        </div>
+      <div class="row g-2">
         <div class="col-md-4">
-          <select class="form-control" [(ngModel)]="tipoNuevo">
+          <input type="text"
+                 class="form-control"
+                 placeholder="Nombre del producto"
+                 [(ngModel)]="nuevoNombre">
+        </div>
+        <div class="col-md-3">
+          <input type="text"
+                 class="form-control"
+                 placeholder="Descripción (opcional)"
+                 [(ngModel)]="nuevaDescripcion">
+        </div>
+        <div class="col-md-2">
+          <input type="number"
+                 class="form-control"
+                 placeholder="Precio"
+                 [(ngModel)]="nuevoPrecio"
+                 min="0">
+        </div>
+        <div class="col-md-2">
+          <select class="form-control" [(ngModel)]="nuevaCategoria">
             <option value="comida">Comida</option>
             <option value="bebida">Bebida</option>
           </select>
         </div>
-        <div class="col-md-3">
-          <button class="btn btn-success w-100" (click)="agregar()">
-            Agregar Producto
+        <div class="col-md-1">
+          <button class="btn btn-success w-100" (click)="agregarProducto()">
+            +
           </button>
         </div>
       </div>
-      <small class="text-muted">Los productos nuevos se agregan como disponibles por defecto</small>
+      <small class="text-muted">Los productos nuevos se agregan como disponibles por defecto.</small>
     </div>
   </div>
-  
+
+  <!-- ─────────────────────────────────────────
+       SECCIÓN: Inventario
+  ───────────────────────────────────────── -->
   <div class="card">
     <div class="card-header bg-dark text-white">
       <h5 class="mb-0">Inventario</h5>
     </div>
     <div class="card-body">
-      <table class="table table-striped">
+
+      <div *ngIf="cargandoProductos" class="text-center">
+        <p>Cargando productos...</p>
+      </div>
+
+      <table *ngIf="!cargandoProductos" class="table table-striped">
         <thead>
           <tr>
             <th>Producto</th>
-            <th>Tipo</th>
+            <th>Categoría</th>
+            <th>Precio</th>
             <th>Disponibilidad</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let p of productos; let i = index">
+          <tr *ngFor="let p of productos">
             <td>{{ p.nombre }}</td>
             <td>
-              <span class="badge" 
-                    [class.bg-warning]="p.tipo === 'comida'"
-                    [class.bg-info]="p.tipo === 'bebida'">
-                {{ p.tipo }}
+              <span class="badge"
+                    [class.bg-warning]="p.categoria === 'comida'"
+                    [class.bg-info]="p.categoria === 'bebida'">
+                {{ p.categoria }}
               </span>
             </td>
+            <td>${{ p.precio | number:'1.2-2' }}</td>
             <td>
               <div class="form-check form-switch">
-                <input class="form-check-input" 
-                       type="checkbox" 
+                <input class="form-check-input"
+                       type="checkbox"
                        [checked]="p.disponible"
-                       (change)="cambiarDisponibilidad(p)"
-                       id="disponible-{{i}}">
-                <label class="form-check-label" for="disponible-{{i}}">
-                  <span class="badge" 
+                       (change)="cambiarDisponibilidad(p)">
+                <label class="form-check-label">
+                  <span class="badge"
                         [class.bg-success]="p.disponible"
                         [class.bg-secondary]="!p.disponible">
                     {{ p.disponible ? 'Disponible' : 'No disponible' }}
@@ -132,13 +169,15 @@
               </div>
             </td>
             <td>
-              <button class="btn btn-sm btn-danger" (click)="eliminar(i)">
+              <button class="btn btn-sm btn-danger" (click)="eliminarProducto(p.id_producto)">
                 Eliminar
               </button>
             </td>
           </tr>
         </tbody>
       </table>
+
     </div>
   </div>
+
 </div>

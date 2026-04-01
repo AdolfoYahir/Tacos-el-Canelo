@@ -2,7 +2,7 @@ export type UserRole = 'admin' | 'cliente';
 export type OrderStatus = 'pendiente' | 'preparando' | 'listo' | 'entregado';
 
 export interface Usuario {
-  id_usuario: number;
+  id_usuario: string;       // era number, ahora string (Firestore doc ID)
   nombre: string;
   correo: string;
   contrasena: string;
@@ -12,7 +12,7 @@ export interface Usuario {
 }
 
 export interface Producto {
-  id_producto: number;
+  id_producto: string;      // era number
   nombre: string;
   descripcion?: string;
   precio: number;
@@ -22,17 +22,17 @@ export interface Producto {
 }
 
 export interface DetallePedido {
-  id_detalle: number;
-  id_pedido: number;
-  id_producto: number;
+  id_detalle: string;       // era number
+  id_pedido: string;        // era number
+  id_producto: string;      // era number
   cantidad: number;
   subtotal: number;
   producto?: Producto;
 }
 
 export interface Pedido {
-  id_pedido: number;
-  id_usuario: number;
+  id_pedido: string;        // era number
+  id_usuario: string;       // era number
   fecha: string;
   estado: string;
   total: number;

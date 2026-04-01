@@ -1,14 +1,7 @@
 <div class="registro-container">
 
-  <h1>Registro</h1>
-
-  <input
-    type="text"
-    placeholder="Nombre completo"
-    [(ngModel)]="nombre"
-    class="input-field"
-  />
-  <p class="hint">Ingresa un nombre, puede ser tu nombre real o un apodo</p>
+  <h1>Completa tu perfil</h1>
+  <p class="hint">Solo necesitamos un par de datos más para completar tu registro.</p>
 
   <input
     type="tel"
@@ -25,35 +18,16 @@
     [(ngModel)]="direccion"
     class="input-field"
   />
-  <p class="hint">Escribe la colonia, la calle seguida de # y número. Ejemplo: Tres Enturias Tiburones #205</p>
-
-  <input
-    [type]="mostrarContrasena ? 'text' : 'password'"
-    placeholder="Contraseña"
-    [(ngModel)]="contrasena"
-    class="input-field"
-  />
-
-  <input
-    [type]="mostrarContrasena ? 'text' : 'password'"
-    placeholder="Confirmar contraseña"
-    [(ngModel)]="confirmarContrasena"
-    class="input-field"
-  />
-
-  <div class="mostrar-contrasena">
-    <input type="checkbox" [(ngModel)]="mostrarContrasena" id="mostrar" />
-    <label for="mostrar"><strong>Mostrar contraseña</strong></label>
-  </div>
-  <p class="hint">Procura que tu contraseña sea fácil de recordar pero difícil de adivinar. Evita usar tu nombre o teléfono.</p>
+  <p class="hint">Ejemplo: Álvaro Obregón #205, Colonia Centro</p>
 
   <p class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</p>
 
-  <button class="btn-registrar" (click)="registrarse()" [disabled]="cargando">
-    {{ cargando ? 'Registrando...' : 'Registrarse' }}
+  <button class="btn-registrar" (click)="completarPerfil()" [disabled]="cargando">
+    {{ cargando ? 'Guardando...' : 'Guardar perfil' }}
   </button>
 
   <button class="btn-regresar" (click)="irALogin()">
-    Regresar a login
+    Regresar
   </button>
+
 </div>

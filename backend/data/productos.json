@@ -1,0 +1,82 @@
+[
+  {
+    "id_producto": "taco-dorado",
+    "nombre": "Taco dorado",
+    "precio": 20,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "taco-blando",
+    "nombre": "Taco blando",
+    "precio": 20,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "taco-con-queso",
+    "nombre": "Taco con queso",
+    "precio": 25,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "torta",
+    "nombre": "Torta",
+    "precio": 45,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "torta-con-queso",
+    "nombre": "Torta con queso",
+    "precio": 50,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "volcan",
+    "nombre": "Volcán",
+    "precio": 30,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "quesadilla-sencilla",
+    "nombre": "Quesadilla sencilla",
+    "precio": 40,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "quesadilla-doble",
+    "nombre": "Quesadilla doble",
+    "precio": 45,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "plato",
+    "nombre": "Plato",
+    "precio": 60,
+    "categoria": "comida",
+    "disponible": true,
+    "descripcion": ""
+  },
+  {
+    "id_producto": "refresco",
+    "nombre": "Refresco",
+    "precio": 20,
+    "categoria": "bebida",
+    "disponible": true,
+    "descripcion": ""
+  }
+]

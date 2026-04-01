@@ -1,0 +1,65 @@
+{
+  "info": {
+    "name": "Tacos El Canelo — API Etapa 2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/health"
+      }
+    },
+    {
+      "name": "GET productos (lista JSON)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/productos"
+      }
+    },
+    {
+      "name": "GET producto por id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/productos/taco-dorado"
+      }
+    },
+    {
+      "name": "POST producto (JSON)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_producto\": \"demo-api\",\n  \"nombre\": \"Producto demo Postman\",\n  \"precio\": 99,\n  \"categoria\": x\"comida\",\n  \"disponible\": true,\n  \"descripcion\": \"Prueba etapa 2\"\n}"
+        },
+        "url": "{{baseUrl}}/api/productos"
+      }
+    },
+    {
+      "name": "PUT producto",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"precio\": 21,\n  \"disponible\": true\n}"
+        },
+        "url": "{{baseUrl}}/api/productos/taco-dorado"
+      }
+    },
+    {
+      "name": "DELETE producto demo",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/productos/demo-api"
+      }
+    }
+  ],
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }]
+}

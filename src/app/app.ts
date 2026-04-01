@@ -1,22 +1,35 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { Pago } from './pago/pago';
-import { Admin } from './admin/admin';
-import { Bebidas } from './bebidas/bebidas';
-import { Carrito } from './carrito/carrito';
-import { Estado } from './estado/estado';
-import { Login } from './login/login';
-import { Menu } from './menu/menu';
-import { RouterModule } from '@angular/router';
-
+import { AuthService } from './auth.service';
+import { Router } from '@angular/router';
 
 @Component({
-  standalone: true,
   selector: 'app-root',
-  imports: [RouterOutlet, RouterModule],
+  standalone: true,
+  imports: [RouterOutlet],          
   templateUrl: './app.html',
-  styleUrls: ['./app.css'] 
+  styleUrl: './app.css'             
 })
-export class App {
-  protected readonly title = signal('tacos-app');
+export class AppComponent implements OnInit {   
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  async ngOnInit() {
+    const firebaseUser = await this.authService.getRedirectResult();
+
+    if (firebaseUser) {
+      console.log('Redirect de Google detectado, usuario:', firebaseUser.uid);
+      await this.authService.syncSession();
+      
+      // Opcional: redirección manual
+      // const returnUrl = this.router.routerState.snapshot.root.queryParams['returnUrl'] || '/menu';
+      // this.router.navigate([returnUrl]);
+    }
+  }
 }
+
+// Export alias for SSR entry points
+export { AppComponent as App };

@@ -1,147 +1,255 @@
-import { Component } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit, PLATFORM_ID, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common'; // Agregado
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Unsubscribe } from 'firebase/firestore';
+import { DatabaseService } from '../database';
+import { Producto, Pedido } from '../models/database.models';
+
+// ─────────────────────────────────────────────────────────────
+// AdminComponent → panel de administración
+// Ruta: /admin
+// Requiere: adminGuard (rol === 'admin')
+// Permite: gestionar productos y cambiar estado de pedidos
+// ─────────────────────────────────────────────────────────────
 
 @Component({
   standalone: true,
   selector: 'app-admin',
-  imports: [FormsModule, CommonModule], // Cambiado NgFor por CommonModule
+  imports: [FormsModule, CommonModule],
   templateUrl: './admin.html',
   styleUrls: ['./admin.css'],
 })
-export class Admin {
+export class Admin implements OnInit, OnDestroy {
 
-  productos: any[] = [];
-  pedidosEstado: string = 'cerrado'; // 'abierto' o 'cerrado'
-  horaApertura: string = '10:00';
-  horaCierre: string = '22:00';
-  mensajePersonalizado: string = '';
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly ngZone = inject(NgZone);
 
-  nuevo = '';
-  tipoNuevo = 'comida';
+  // ── Productos ──
+  productos: Producto[] = [];
+  nuevoNombre: string = '';
+  nuevaDescripcion: string = '';
+  nuevoPrecio: number = 0;
+  nuevaCategoria: string = 'comida';
+  cargandoProductos: boolean = false;
 
-  constructor(private router: Router) {
+  // ── Pedidos ──
+  pedidos: Pedido[] = [];
+  cargandoPedidos: boolean = false;
+  private unsubscribePedidos: Unsubscribe | null = null;
 
-    const datos = localStorage.getItem('inventario');
-    const config = localStorage.getItem('configuracion');
+  // ── Estados disponibles para un pedido ──
+  estados: string[] = ['pendiente', 'preparando', 'listo', 'entregado'];
 
-    if (datos) {
-      this.productos = JSON.parse(datos);
-    } else {
-      this.productos = [
-        { nombre: 'Taco de birria', tipo: 'comida', disponible: true },
-        { nombre: 'Quesadilla', tipo: 'comida', disponible: true },
-        { nombre: 'Agua fresca', tipo: 'bebida', disponible: true },
-        { nombre: 'Coca Cola', tipo: 'bebida', disponible: true }
-      ];
-      this.guardar();
-    }
+  // ── Mensajes de feedback ──
+  errorMsg: string = '';
+  exitoMsg: string = '';
 
-    // Cargar configuración de horarios
-    if (config) {
-      const configData = JSON.parse(config);
-      this.pedidosEstado = configData.estado || 'cerrado';
-      this.horaApertura = configData.horaApertura || '10:00';
-      this.horaCierre = configData.horaCierre || '22:00';
-      this.mensajePersonalizado = configData.mensaje || '';
-    } else {
-      this.guardarConfiguracion();
+  constructor(
+    private db: DatabaseService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    void this.cargarProductos();
+    // Carga inicial sin depender solo del listener (y evita UI congelada si Firestore corre fuera de NgZone).
+    void this.cargarPedidos();
+    this.iniciarSuscripcionPedidos();
+  }
+
+  ngOnDestroy(): void {
+    if (this.unsubscribePedidos) this.unsubscribePedidos();
+  }
+
+  // ─────────────────────────────────────────
+  // PRODUCTOS
+  // ─────────────────────────────────────────
+
+  async cargarProductos(): Promise<void> {
+    this.cargandoProductos = true;
+    try {
+      const productos = await this.db.getProductos();
+      this.ngZone.run(() => {
+        this.productos = productos;
+      });
+    } catch (err) {
+      this.ngZone.run(() => {
+        this.errorMsg = 'Error al cargar productos.';
+      });
+      console.error(err);
+    } finally {
+      this.ngZone.run(() => {
+        this.cargandoProductos = false;
+      });
     }
   }
 
-  cerrarSesion() {
-    localStorage.removeItem('sesion');
-    localStorage.removeItem('usuarioActual');
+  async agregarProducto(): Promise<void> {
+    if (!this.nuevoNombre.trim()) {
+      this.errorMsg = 'El nombre del producto es obligatorio.';
+      return;
+    }
+    if (this.nuevoPrecio <= 0) {
+      this.errorMsg = 'El precio debe ser mayor a 0.';
+      return;
+    }
+
+    // Verificar duplicado localmente antes de ir a Supabase
+    const existe = this.productos.some(
+      p => p.nombre.toLowerCase() === this.nuevoNombre.trim().toLowerCase()
+    );
+    if (existe) {
+      this.errorMsg = 'Ya existe un producto con ese nombre.';
+      return;
+    }
+
+    try {
+      const nuevo = await this.db.createProducto({
+        nombre: this.nuevoNombre.trim(),
+        descripcion: this.nuevaDescripcion.trim(),
+        precio: this.nuevoPrecio,
+        categoria: this.nuevaCategoria,
+        imagen_url: '',
+        disponible: true
+      });
+
+      this.productos.push(nuevo);
+      this.limpiarFormProducto();
+      this.mostrarExito('Producto agregado correctamente.');
+    } catch (err) {
+      this.errorMsg = 'Error al agregar producto.';
+      console.error(err);
+    }
+  }
+
+  async cambiarDisponibilidad(producto: Producto): Promise<void> {
+    try {
+      const actualizado = await this.db.updateProducto(producto.id_producto, {
+        disponible: !producto.disponible
+      });
+      // Actualizar localmente sin recargar toda la lista
+      const idx = this.productos.findIndex(p => p.id_producto === producto.id_producto);
+      if (idx >= 0) this.productos[idx] = actualizado;
+
+      const estado = actualizado.disponible ? 'disponible' : 'no disponible';
+      this.mostrarExito(`${actualizado.nombre} ahora está ${estado}.`);
+    } catch (err) {
+      this.errorMsg = 'Error al cambiar disponibilidad.';
+      console.error(err);
+    }
+  }
+
+  async eliminarProducto(id: string): Promise<void> {  // ← string
+  if (!confirm('¿Eliminar este producto?')) return;
+  try {
+    await this.db.deleteProducto(id);
+    this.productos = this.productos.filter(p => p.id_producto !== id);
+    this.mostrarExito('Producto eliminado.');
+  } catch (err) {
+    this.errorMsg = 'Error al eliminar producto.';
+    console.error(err);
+  }
+}
+
+  limpiarFormProducto(): void {
+    this.nuevoNombre = '';
+    this.nuevaDescripcion = '';
+    this.nuevoPrecio = 0;
+    this.nuevaCategoria = 'comida';
+  }
+
+  // ─────────────────────────────────────────
+  // PEDIDOS
+  // ─────────────────────────────────────────
+
+  async cargarPedidos(): Promise<void> {
+    this.cargandoPedidos = true;
+    try {
+      const pedidos = await this.db.getPedidos();
+      const sorted = pedidos.sort((a, b) => {
+        const aTime = new Date(a.fecha).getTime();
+        const bTime = new Date(b.fecha).getTime();
+        return bTime - aTime;
+      });
+      this.ngZone.run(() => {
+        this.errorMsg = '';
+        this.pedidos = sorted;
+      });
+    } catch (err) {
+      this.ngZone.run(() => {
+        this.errorMsg = 'Error al cargar pedidos.';
+      });
+      console.error(err);
+    } finally {
+      this.ngZone.run(() => {
+        this.cargandoPedidos = false;
+      });
+    }
+  }
+
+  iniciarSuscripcionPedidos(): void {
+    this.unsubscribePedidos = this.db.subscribePedidos(
+      (pedidos) => {
+        this.ngZone.run(() => {
+          this.errorMsg = '';
+          this.pedidos = pedidos;
+          this.cargandoPedidos = false;
+        });
+      },
+      (err) => {
+        const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+        const msg = err instanceof Error ? err.message : String(err);
+        this.ngZone.run(() => {
+          this.errorMsg =
+            code === 'permission-denied'
+              ? 'Firestore bloqueó la lectura de pedidos. Publica reglas que permitan listar la colección `pedido` (y idealmente leer `detalle_pedido`) para usuarios autenticados o lectura según tu política. Detalle: permission-denied.'
+              : `Error al sincronizar pedidos: ${msg || 'revisa la consola (F12) y las reglas de Firestore.'}`;
+          this.cargandoPedidos = false;
+        });
+        console.error(err);
+      }
+    );
+  }
+
+  async cambiarEstadoPedido(pedido: Pedido, nuevoEstado: string): Promise<void> {
+    try {
+      const actualizado = await this.db.updateEstadoPedido(pedido.id_pedido, nuevoEstado);
+      // Actualizar localmente sin recargar toda la lista
+      const idx = this.pedidos.findIndex(p => p.id_pedido === pedido.id_pedido);
+      if (idx >= 0) this.pedidos[idx] = { ...this.pedidos[idx], estado: actualizado.estado };
+      this.mostrarExito(`Pedido #${pedido.id_pedido} actualizado a "${nuevoEstado}".`);
+    } catch (err) {
+      this.errorMsg = 'Error al actualizar estado del pedido.';
+      console.error(err);
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // SESIÓN
+  // ─────────────────────────────────────────
+
+  cerrarSesion(): void {
+    localStorage.removeItem('usuario');
+    localStorage.removeItem('ultimo_pedido_id');
     this.router.navigate(['/']);
   }
 
-  guardar() {
-    localStorage.setItem('inventario', JSON.stringify(this.productos));
+  // ─────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────
+
+  mostrarExito(msg: string): void {
+    this.errorMsg = '';
+    this.exitoMsg = msg;
+    setTimeout(() => this.exitoMsg = '', 3000);
   }
 
-  guardarConfiguracion() {
-    const config = {
-      estado: this.pedidosEstado,
-      horaApertura: this.horaApertura,
-      horaCierre: this.horaCierre,
-      mensaje: this.mensajePersonalizado
-    };
-    localStorage.setItem('configuracion', JSON.stringify(config));
-  }
-
-  cambiarEstadoPedidos() {
-    this.pedidosEstado = this.pedidosEstado === 'abierto' ? 'cerrado' : 'abierto';
-    this.guardarConfiguracion();
-    
-    const estadoTexto = this.pedidosEstado === 'abierto' ? 'ABIERTOS' : 'CERRADOS';
-    alert(`Pedidos ${estadoTexto}`);
-  }
-
-  guardarHorarios() {
-    this.guardarConfiguracion();
-    alert('Horarios guardados correctamente');
-  }
-
-  // Versión simplificada de disponibilidad
-  estaDisponible(producto: any): boolean {
-    return producto.disponible;
-  }
-
-  // Verificar si se pueden hacer pedidos
-  pedidosAbiertos(): boolean {
-    return this.pedidosEstado === 'abierto';
-  }
-
-  agregar() {
-    if (!this.nuevo.trim()) {
-      alert('Escribe un nombre');
-      return;
-    }
-
-    const existe = this.productos.some(
-      p => p.nombre.toLowerCase() === this.nuevo.toLowerCase()
-    );
-
-    if (existe) {
-      alert('Ese producto ya existe');
-      return;
-    }
-
-    this.productos.push({
-      nombre: this.nuevo,
-      tipo: this.tipoNuevo,
-      disponible: true // Por defecto disponible al agregar
-    });
-
-    this.nuevo = '';
-
-    this.guardar();
-  }
-
-  // Nuevo método para cambiar disponibilidad con switch
-  cambiarDisponibilidad(p: any) {
-    p.disponible = !p.disponible;
-    this.guardar();
-    
-    const estado = p.disponible ? 'disponible' : 'no disponible';
-    alert(`${p.nombre} ahora está ${estado}`);
-  }
-
-  eliminar(i: number) {
-    if (confirm('¿Eliminar producto?')) {
-      this.productos.splice(i, 1);
-      this.guardar();
-    }
-  }
-
-  // Método para obtener productos disponibles
-  productosDisponibles() {
+  get productosDisponibles(): Producto[] {
     return this.productos.filter(p => p.disponible);
   }
 
-  // Método para obtener productos no disponibles
-  productosNoDisponibles() {
+  get productosNoDisponibles(): Producto[] {
     return this.productos.filter(p => !p.disponible);
   }
 }
